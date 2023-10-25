@@ -1,0 +1,10 @@
+# token lists
+token_lists/
+less_token_lists/
+_MACOSX/
+._token_lists
+
+# saved embs
+saved_embeddings/
+
+__pycache__/
