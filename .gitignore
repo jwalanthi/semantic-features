@@ -1,7 +1,5 @@
-# token lists
-token_lists/
-less_token_lists/
-_MACOSX/
+# git ignore all the csvs they are too big
+*.csv
 ._token_lists
 
 # saved embs
