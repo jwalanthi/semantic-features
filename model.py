@@ -120,10 +120,15 @@ class HiddenStateFeatureNormDataset(Dataset):
         return self.input_embeddings[idx], self.feature_norms[idx]
 
 def train(args : Dict[str, Any]):
+
+    input_embeddings = torch.load(args.input_embeddings)
+    feature_norms = torch.load(args.feature_norms)
+    words = list(input_embeddings.keys())
+
     model = FeatureNormPredictor(
         FFNParams(
-            input_size=args.input_size,
-            output_size=args.output_size,
+            input_size=input_embeddings[words[0]].shape[0],
+            output_size=feature_norms[words[0]].shape[0],
             hidden_size=args.hidden_size,
             num_layers=args.num_layers,
             dropout=args.dropout,
@@ -135,10 +140,6 @@ def train(args : Dict[str, Any]):
             weight_decay=args.weight_decay,
         ),
     )
-
-    input_embeddings = torch.load(args.input_embeddings)
-    feature_norms = torch.load(args.feature_norms)
-    words = list(input_embeddings.keys())
 
     train_size = int(len(words) * 0.8)
     valid_size = len(words) - train_size
