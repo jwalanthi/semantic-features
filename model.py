@@ -2,7 +2,8 @@ import torch
 import lightning
 from tqdm import tqdm, trange
 from torch.utils.data import Dataset
-from typing import Dict, List, Tuple, TypedDict
+from typing import Any, Dict, List, Tuple, TypedDict
+import argparse
 
 
 class FFNModule(torch.nn.Module):
@@ -48,81 +49,13 @@ class TrainingParams(TypedDict):
     batch_size: int
     learning_rate: float
     weight_decay: float
-    device: str
 
-
-#TODO: rework this as pytorch-lightning module
-class FeatureNormPredictor:
-    """
-    This class will load a dataset of hidden state representations of different words
-    and their corresponding continuous linguistic feature norm vectors, then train a
-    FFN to predict the continuous linguistic feature norm vector from the hidden state.
-    """
-
-    def __init__(
-        self,
-        input_embeddings: Dict[str, torch.Tensor],
-        target_feature_norms: Dict[str, torch.Tensor],
-        model_params: FFNParams,
-        training_params: TrainingParams,
-    ):
-        # Invariant: input_embeddings and target_feature_norms have exactly the same keys
-        # this should be done by the train/test split and upstream data processing
-        assert(input_embeddings.keys() == target_feature_norms.keys())
-
-        self.input_embeddings = input_embeddings
-        self.target_feature_norms = target_feature_norms
-        self.model = FFNModule(**model_params)
-        self.training_params = training_params
-
-    def train(self):
-        vocabulary_order = list(self.input_embeddings.keys())
-        inputs = torch.stack([
-            self.input_embeddings[word] for word in vocabulary_order
-        ])
-        targets = torch.stack([
-            self.target_feature_norms[word] for word in vocabulary_order
-        ])
-        dataset = torch.utils.data.TensorDataset(inputs, targets)
-        dataloader = torch.utils.data.DataLoader(
-            dataset,
-            batch_size=self.training_params["batch_size"],
-            shuffle=True,
-        )
-        optimizer = torch.optim.Adam(
-            self.model.parameters(),
-            lr=self.training_params["learning_rate"],
-            weight_decay=self.training_params["weight_decay"],
-        )
-        # define the loss function with possible regularization
-        loss_fn = torch.nn.MSELoss()
-
-        for epoch in trange(self.training_params["num_epochs"]):
-            for batch in dataloader:
-                optimizer.zero_grad()
-                inputs, targets = batch
-                outputs = self.model(inputs)
-                loss = loss_fn(outputs, targets)
-                loss.backward()
-                optimizer.step()
-
-    def load_model(self, path: str):
-        self.model.load_state_dict(torch.load(path))
-        self.loss_fn = torch.nn.MSELoss()
-
-    def save_model(self, path: str):
-        torch.save(self.model.state_dict(), path)
-    
-    def predict(self, word: str):
-        return self.model(self.input_embeddings[word])
-
-
-#TODO: what should the interface look like?
 class FeatureNormPredictor(lightning.LightningModule):
-    def __init__(self, ffn_params : FFNParams):
+    def __init__(self, ffn_params : FFNParams, training_params : TrainingParams):
         super().__init__()
         self.model = FFNModule(**FFNParams)
         self.loss_function = torch.nn.MSELoss()
+        self.training_params = training_params
 
     def training_step(self, batch, batch_idx):
         x,y = batch
@@ -131,8 +64,34 @@ class FeatureNormPredictor(lightning.LightningModule):
         self.log("train_loss", loss)
         return loss
     
+    def validation_step(self, batch, batch_idx):
+        x,y = batch
+        outputs = self.model(x)
+        loss = self.loss_function(outputs, y)
+        self.log("val_loss", loss)
+        return loss
+    
+    def test_step(self, batch, batch_idx):
+        return self.model(batch)
+    
+    def predict(self, batch):
+        return self.model(batch)
+    
+    def __call__(self, input):
+        return self.model(input)
+    
     def configure_optimizer(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr)
+        return torch.optim.Adam(
+            self.parameters(), 
+            lr=self.training_params["learning_rate"],
+            weight_decay=self.training_params["weight_decay"],
+        )
+    
+    def save_model(self, path: str):
+        torch.save(self.model.state_dict(), path)
+
+    def load_model(self, path: str):
+        self.model.load_state_dict(torch.load(path))
 
     
 class HiddenStateFeatureNormDataset(Dataset):
@@ -146,20 +105,88 @@ class HiddenStateFeatureNormDataset(Dataset):
         # this should be done by the train/test split and upstream data processing
         assert(input_embeddings.keys() == feature_norms.keys())
 
-        self.word_order = list(input_embeddings.keys())
+        self.words = list(input_embeddings.keys())
         self.input_embeddings = torch.stack([
-            input_embeddings[word] for word in self.word_order
+            input_embeddings[word] for word in self.words
         ])
         self.feature_norms = torch.stack([
-            feature_norms[word] for word in self.word_order
+            feature_norms[word] for word in self.words
         ])
         
     def __len__(self):
-        return len(self.word_order)
+        return len(self.words)
     
     def __getitem__(self, idx):
         return self.input_embeddings[idx], self.feature_norms[idx]
 
-        
+def train(args : Dict[str, Any]):
+    model = FeatureNormPredictor(
+        FFNParams(
+            input_size=args.input_size,
+            output_size=args.output_size,
+            hidden_size=args.hidden_size,
+            num_layers=args.num_layers,
+            dropout=args.dropout,
+        ),
+        TrainingParams(
+            num_epochs=args.num_epochs,
+            batch_size=args.batch_size,
+            learning_rate=args.learning_rate,
+            weight_decay=args.weight_decay,
+        ),
+    )
 
-    
+    input_embeddings = torch.load(args.input_embeddings)
+    feature_norms = torch.load(args.feature_norms)
+    words = list(input_embeddings.keys())
+
+    train_size = int(len(words) * 0.8)
+    valid_size = len(words) - train_size
+    train_words, validation_words = torch.utils.random_split(words, [train_size, valid_size])
+
+    train_embeddings = {word: input_embeddings[word] for word in train_words}
+    train_feature_norms = {word: feature_norms[word] for word in train_words}
+    validation_embeddings = {word: input_embeddings[word] for word in validation_words}
+    validation_feature_norms = {word: feature_norms[word] for word in validation_words}
+
+    train_dataset = HiddenStateFeatureNormDataset(train_embeddings, train_feature_norms)
+    train_dataloader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+    )
+    validation_dataset = HiddenStateFeatureNormDataset(validation_embeddings, validation_feature_norms)
+    validation_dataloader = torch.utils.data.DataLoader(
+        validation_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+    )
+
+    #TODO Design Decision - other trainer args? Is device necessary?
+    trainer = lightning.Trainer(
+        max_epochs=args.num_epochs,
+    )
+
+    trainer.fit(model, train_dataloader)
+
+    trainer.validate(model, validation_dataloader)
+
+    model.save_model(args.save_path)
+
+if __name__ == "__main__":
+    # parse args
+    parser = argparse.ArgumentParser()
+    #TODO: Design Decision: Should we input paths, to the pre-extracted layers, or the model/layer we want to generate them from
+    parser.add_argument("--input_embeddings", type=str, required=True, help="path to input hidden states")
+    parser.add_argument("--feature_norms", type=str, required=True, help="path to feature norms")
+    parser.add_argument("--layers", type=int, default=2, help="number of layers in FFN")
+    parser.add_argument("--hidden_size", type=int, default=100, help="hidden size of FFN")
+    parser.add_argument("--dropout", type=float, default=0.1, help="dropout rate of FFN")
+    parser.add_argument("--num_epochs", type=int, default=10, help="number of epochs to train for")
+    parser.add_argument("--batch_size", type=int, default=32, help="batch size for training")
+    parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate for training")
+    parser.add_argument("--weight_decay", type=float, default=0.0, help="weight decay for training")
+    parser.add_argument("--save_path", type=str, required=True, help="path to save model to")
+
+    args = parser.parse_args()
+    train(args)
