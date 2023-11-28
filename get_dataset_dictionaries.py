@@ -5,12 +5,12 @@ from collections import defaultdict
 
 def get_dict_pair(norm :str, embedding_directory :str, layer: int, translated=True):
     if norm == 'binder':
-        all_ratings = get_binder_norms(embedding_directory, layer)
+        all_ratings = get_binder_norms()
         feature_list = []
     elif norm == 'buchannan':
-        all_ratings, feature_list = get_buchannan_norms(embedding_directory, layer, translated)
+        all_ratings, feature_list = get_buchannan_norms(translated)
     elif norm == 'mcrae':
-        all_ratings, feature_list = get_mcrae_norms(embedding_directory, layer)
+        all_ratings, feature_list = get_mcrae_norms()
     else:
         return None, None, None
     
@@ -31,7 +31,7 @@ def get_dict_pair(norm :str, embedding_directory :str, layer: int, translated=Tr
     return ratings, embeddings, feature_list
 
 
-def get_binder_norms(embedding_directory :str, layer: int):
+def get_binder_norms():
     all_ratings = {}
 
     ratings_df = pd.read_csv('feature-norms/binder_word_ratings/WordSet1_Ratings.csv', na_values=['na'])
@@ -45,7 +45,7 @@ def get_binder_norms(embedding_directory :str, layer: int):
     # now i have word:tensor for all the words that have feature norms
     return all_ratings
     
-def get_mcrae_norms(embedding_directory :str, layer: int):
+def get_mcrae_norms():
     ratings_df = pd.read_csv('feature-norms/mcrae/concepts_features-Table1.csv')
     # get a list of the features
     feature_list = ratings_df['Feature'].unique().tolist()
@@ -59,7 +59,7 @@ def get_mcrae_norms(embedding_directory :str, layer: int):
     # now i have a one-hot encoding for each of the words in the feature set
     return all_ratings, feature_list
 
-def get_buchannan_norms(embedding_directory :str, layer: int, translated):
+def get_buchannan_norms(translated):
     ratings_df = pd.read_csv('feature-norms/buchanan/cue_feature_words.csv')
     # get a list of the features
     column = 'translated' if translated else 'feature'
