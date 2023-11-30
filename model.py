@@ -1,9 +1,10 @@
 import torch
 import lightning
-from tqdm import tqdm, trange
 from torch.utils.data import Dataset
-from typing import Any, Dict, List, Tuple, TypedDict
+from typing import Any, Dict
 import argparse
+from pydantic import BaseModel
+from get_dataset_dictionaries import get_dict_pair
 
 
 class FFNModule(torch.nn.Module):
@@ -37,14 +38,14 @@ class FFNModule(torch.nn.Module):
     def forward(self, x):
         return self.network(x)
     
-class FFNParams(TypedDict):
+class FFNParams(BaseModel):
     input_size: int
     output_size: int
     hidden_size: int
     num_layers: int
     dropout: float
 
-class TrainingParams(TypedDict):
+class TrainingParams(BaseModel):
     num_epochs: int
     batch_size: int
     learning_rate: float
@@ -53,7 +54,10 @@ class TrainingParams(TypedDict):
 class FeatureNormPredictor(lightning.LightningModule):
     def __init__(self, ffn_params : FFNParams, training_params : TrainingParams):
         super().__init__()
-        self.model = FFNModule(**FFNParams)
+        self.save_hyperparameters()
+        self.ffn_params = ffn_params
+        self.training_params = training_params
+        self.model = FFNModule(**ffn_params.model_dump())
         self.loss_function = torch.nn.MSELoss()
         self.training_params = training_params
 
@@ -80,12 +84,13 @@ class FeatureNormPredictor(lightning.LightningModule):
     def __call__(self, input):
         return self.model(input)
     
-    def configure_optimizer(self):
-        return torch.optim.Adam(
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(
             self.parameters(), 
-            lr=self.training_params["learning_rate"],
-            weight_decay=self.training_params["weight_decay"],
+            lr=self.training_params.learning_rate,
+            weight_decay=self.training_params.weight_decay,
         )
+        return optimizer
     
     def save_model(self, path: str):
         torch.save(self.model.state_dict(), path)
@@ -121,10 +126,18 @@ class HiddenStateFeatureNormDataset(Dataset):
 
 def train(args : Dict[str, Any]):
 
-    input_embeddings = torch.load(args.input_embeddings)
-    feature_norms = torch.load(args.feature_norms)
-    words = list(input_embeddings.keys())
+    # input_embeddings = torch.load(args.input_embeddings)
+    # feature_norms = torch.load(args.feature_norms)
+    # words = list(input_embeddings.keys())
 
+    input_embeddings, feature_norms, _ = get_dict_pair(
+        args.norm,
+        args.embedding_dir,
+        args.lm_layer,
+    )
+
+    words = list(input_embeddings.keys())
+    
     model = FeatureNormPredictor(
         FFNParams(
             input_size=input_embeddings[words[0]].shape[0],
@@ -141,10 +154,12 @@ def train(args : Dict[str, Any]):
         ),
     )
 
+    # train/val split
     train_size = int(len(words) * 0.8)
     valid_size = len(words) - train_size
-    train_words, validation_words = torch.utils.random_split(words, [train_size, valid_size])
+    train_words, validation_words = torch.utils.data.random_split(words, [train_size, valid_size])
 
+    # TODO: Methodology Decisiion: should we be normalizing the hidden states/feature norms?
     train_embeddings = {word: input_embeddings[word] for word in train_words}
     train_feature_norms = {word: feature_norms[word] for word in train_words}
     validation_embeddings = {word: input_embeddings[word] for word in validation_words}
@@ -163,31 +178,51 @@ def train(args : Dict[str, Any]):
         shuffle=True,
     )
 
+    callbacks = [
+        lightning.pytorch.callbacks.ModelCheckpoint(
+            save_last=True,
+            dirpath=args.save_dir,
+            filename=args.save_model_name,
+        ),
+    ]
+    if args.early_stopping is not None:
+        callbacks.append(lightning.pytorch.callbacks.EarlyStopping(
+            monitor="val_loss",
+            patience=args.early_stopping,
+        ))
+
     #TODO Design Decision - other trainer args? Is device necessary?
+    # cpu is fine for the scale of this model - only a few layers and a few hundred words
     trainer = lightning.Trainer(
         max_epochs=args.num_epochs,
+        callbacks=callbacks,
+        accelerator="cpu",
     )
 
     trainer.fit(model, train_dataloader)
 
     trainer.validate(model, validation_dataloader)
 
-    model.save_model(args.save_path)
+    return model
 
 if __name__ == "__main__":
     # parse args
     parser = argparse.ArgumentParser()
     #TODO: Design Decision: Should we input paths, to the pre-extracted layers, or the model/layer we want to generate them from
-    parser.add_argument("--input_embeddings", type=str, required=True, help="path to input hidden states")
-    parser.add_argument("--feature_norms", type=str, required=True, help="path to feature norms")
-    parser.add_argument("--layers", type=int, default=2, help="number of layers in FFN")
+    parser.add_argument("--norm", type=str, required=True, help="feature norm set to use")
+    parser.add_argument("--embedding_dir", type=str, required=True, help=" directory containing embeddings")
+    parser.add_argument("--lm_layer", type=int, required=True, help="layer of embeddings to use")
+    parser.add_argument("--num_layers", type=int, default=2, help="number of layers in FFN")
     parser.add_argument("--hidden_size", type=int, default=100, help="hidden size of FFN")
     parser.add_argument("--dropout", type=float, default=0.1, help="dropout rate of FFN")
     parser.add_argument("--num_epochs", type=int, default=10, help="number of epochs to train for")
     parser.add_argument("--batch_size", type=int, default=32, help="batch size for training")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate for training")
     parser.add_argument("--weight_decay", type=float, default=0.0, help="weight decay for training")
-    parser.add_argument("--save_path", type=str, required=True, help="path to save model to")
+    parser.add_argument("--early_stopping", type=int, default=None, help="number of epochs to wait for early stopping")
+    parser.add_argument("--save_dir", type=str, required=True, help="directory to save model to")
+    parser.add_argument("--save_model_name", type=str, required=True, help="name of model to save")
+
 
     args = parser.parse_args()
-    train(args)
+    model = train(args)
