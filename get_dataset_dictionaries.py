@@ -3,16 +3,16 @@ import torch
 import os
 from collections import defaultdict
 
-def get_dict_pair(norm :str, embedding_directory :str, layer: int, translated=True):
+def get_dict_pair(norm: str, embedding_directory: str, layer: int, translated=True):
     if norm == 'binder':
         all_ratings = get_binder_norms()
         feature_list = []
     elif norm == 'buchannan':
-        all_ratings, feature_list = get_buchannan_norms(translated)
+        all_ratings, feature_list = get_buchannan_norms(translated=translated)
     elif norm == 'mcrae':
         all_ratings, feature_list = get_mcrae_norms()
     else:
-        return None, None, None
+        raise ValueError('norm must be binder, buchannan, or mcrae')
     
     # want to take the intersection of the words that have ratings and those for which we have embeddings
     with open(os.path.join(embedding_directory, 'words.txt')) as words_file:
@@ -28,20 +28,20 @@ def get_dict_pair(norm :str, embedding_directory :str, layer: int, translated=Tr
             embeddings[emb_word] = all_embs_tensor[i]
             ratings[emb_word] = all_ratings[emb_word]
     
-    return ratings, embeddings, feature_list
+    return embeddings, ratings, feature_list
 
 
 def get_binder_norms():
     all_ratings = {}
 
-    ratings_df = pd.read_csv('feature-norms/binder_word_ratings/WordSet1_Ratings.csv', na_values=['na'])
+    ratings_df = pd.read_csv('feature-norms/binder/WordSet1_Ratings.csv', na_values=['na'])
     # fill in 0 for na's
     ratings_df.fillna(value=0, inplace=True)
     feature_cols = ratings_df.iloc[:,5:70].columns
     ratings_df[feature_cols] = ratings_df[feature_cols].apply(pd.to_numeric, errors='coerce')
-    for i,row in ratings_df.iterrows():
+    for _, row in ratings_df.iterrows():
         word = row[1]
-        all_ratings[word]= torch.tensor(row[5:70])
+        all_ratings[word] = torch.tensor(row[5:70])
     # now i have word:tensor for all the words that have feature norms
     return all_ratings
     
@@ -52,14 +52,14 @@ def get_mcrae_norms():
     feature_list.sort()
     feature_indexes = {feature_list[i]:i for i in range(len(feature_list))}
     all_ratings = defaultdict(lambda : torch.zeros(len(feature_list)))
-    for i, row in ratings_df.iterrows():
+    for _, row in ratings_df.iterrows():
         word = row[0]
         all_ratings[word][feature_indexes[row[1]]] = 1
     
     # now i have a one-hot encoding for each of the words in the feature set
     return all_ratings, feature_list
 
-def get_buchannan_norms(translated):
+def get_buchannan_norms(translated=True):
     ratings_df = pd.read_csv('feature-norms/buchanan/cue_feature_words.csv')
     # get a list of the features
     column = 'translated' if translated else 'feature'
@@ -68,20 +68,15 @@ def get_buchannan_norms(translated):
     # an inverted list
     feature_indexes = {feature_list[i]:i for i in range(len(feature_list))}
     all_ratings = defaultdict(lambda : torch.zeros(len(feature_list)))
-    for i, row in ratings_df.iterrows():
+    for _, row in ratings_df.iterrows():
         word = row[1]
         all_ratings[word][feature_indexes[row[column]]] = 1
     
     # now i have a one-hot encoding for each of the words in the feature set
     return all_ratings, feature_list
-
-
-
-
-
             
 if __name__ == '__main__':
-    ratings, embeddings, feature_list = get_dict_pair('mcrae','saved_embeddings/bert-base-uncased',10)
+    embeddings, ratings, feature_list = get_dict_pair('mcrae', '/home/shared/semantic_features/saved_embeddings/bert-base-uncased', 10, translated=True)
     print((ratings.keys() == embeddings.keys()))
     print(embeddings['airplane'])
 
