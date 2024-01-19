@@ -4,5 +4,7 @@
 
 # saved embs
 saved_embeddings/
+saved_models/
+lightning_logs/
 
 __pycache__/
