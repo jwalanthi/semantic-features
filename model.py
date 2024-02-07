@@ -72,7 +72,7 @@ class FeatureNormPredictor(lightning.LightningModule):
         x,y = batch
         outputs = self.model(x)
         loss = self.loss_function(outputs, y)
-        self.log("val_loss", loss)
+        self.log("val_loss", loss, on_epoch=True, prog_bar=True)
         return loss
     
     def test_step(self, batch, batch_idx):
@@ -189,6 +189,8 @@ def train(args : Dict[str, Any]):
         callbacks.append(lightning.pytorch.callbacks.EarlyStopping(
             monitor="val_loss",
             patience=args.early_stopping,
+            mode='min',
+            min_delta=0.01
         ))
 
     #TODO Design Decision - other trainer args? Is device necessary?
@@ -197,9 +199,10 @@ def train(args : Dict[str, Any]):
         max_epochs=args.num_epochs,
         callbacks=callbacks,
         accelerator="cpu",
+        log_every_n_steps=7
     )
 
-    trainer.fit(model, train_dataloader)
+    trainer.fit(model, train_dataloader, validation_dataloader)
 
     trainer.validate(model, validation_dataloader)
 
