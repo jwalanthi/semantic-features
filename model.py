@@ -6,6 +6,9 @@ import argparse
 from pydantic import BaseModel
 from get_dataset_dictionaries import get_dict_pair
 
+import optuna
+from optuna.integration import PyTorchLightningPruningCallback
+from functools import partial
 
 class FFNModule(torch.nn.Module):
     """
@@ -124,6 +127,7 @@ class HiddenStateFeatureNormDataset(Dataset):
     def __getitem__(self, idx):
         return self.input_embeddings[idx], self.feature_norms[idx]
 
+# this is used when not optimizing
 def train(args : Dict[str, Any]):
 
     # input_embeddings = torch.load(args.input_embeddings)
@@ -159,7 +163,7 @@ def train(args : Dict[str, Any]):
     valid_size = len(words) - train_size
     train_words, validation_words = torch.utils.data.random_split(words, [train_size, valid_size])
 
-    # TODO: Methodology Decisiion: should we be normalizing the hidden states/feature norms?
+    # TODO: Methodology Decision: should we be normalizing the hidden states/feature norms?
     train_embeddings = {word: input_embeddings[word] for word in train_words}
     train_feature_norms = {word: feature_norms[word] for word in train_words}
     validation_embeddings = {word: input_embeddings[word] for word in validation_words}
@@ -208,13 +212,98 @@ def train(args : Dict[str, Any]):
 
     return model
 
+# this is used when optimizing
+def objective(trial: optuna.trial.Trial, args: Dict[str, Any]) -> float:
+    # optimizing hidden size, batch size, and learning rate
+    input_embeddings, feature_norms, _ = get_dict_pair(
+        args.norm,
+        args.embedding_dir,
+        args.lm_layer,
+    )
+
+    words = list(input_embeddings.keys())
+    input_size=input_embeddings[words[0]].shape[0]
+    output_size=feature_norms[words[0]].shape[0]
+    min_size = min(output_size, input_size)
+    max_size = min(output_size, 2*input_size)if min_size == input_size else min(2*output_size, input_size)
+    hidden_size = trial.suggest_int("hidden_size", min_size, max_size, step=5, log=False)
+    batch_size = trial.suggest_int("batch_size", 16, 128, log=True)
+    learning_rate = trial.suggest_float("learning_rate", 1e-6, 1, log=True)
+
+    model = FeatureNormPredictor(
+        FFNParams(
+            input_size=input_size,
+            output_size=output_size,
+            hidden_size=hidden_size,
+            num_layers=args.num_layers,
+            dropout=args.dropout,
+        ),
+        TrainingParams(
+            num_epochs=args.num_epochs,
+            batch_size=batch_size,
+            learning_rate=learning_rate,
+            weight_decay=args.weight_decay,
+        ),
+    )
+
+    # train/val split
+    train_size = int(len(words) * 0.8)
+    valid_size = len(words) - train_size
+    train_words, validation_words = torch.utils.data.random_split(words, [train_size, valid_size])
+
+    train_embeddings = {word: input_embeddings[word] for word in train_words}
+    train_feature_norms = {word: feature_norms[word] for word in train_words}
+    validation_embeddings = {word: input_embeddings[word] for word in validation_words}
+    validation_feature_norms = {word: feature_norms[word] for word in validation_words}
+
+    train_dataset = HiddenStateFeatureNormDataset(train_embeddings, train_feature_norms)
+    train_dataloader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+    )
+    validation_dataset = HiddenStateFeatureNormDataset(validation_embeddings, validation_feature_norms)
+    validation_dataloader = torch.utils.data.DataLoader(
+        validation_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+    )
+
+    callbacks = [
+        PyTorchLightningPruningCallback(
+            trial,
+            monitor='val_loss'
+        )
+    ]
+    # note that if optimizing is chosen, will automatically not implement vanilla early stopping 
+    #TODO Design Decision - other trainer args? Is device necessary?
+    # cpu is fine for the scale of this model - only a few layers and a few hundred words
+    trainer = lightning.Trainer(
+        max_epochs=args.num_epochs,
+        callbacks=callbacks,
+        accelerator="cpu",
+        log_every_n_steps=7,
+        enable_checkpointing=False
+    )
+
+    trainer.fit(model, train_dataloader, validation_dataloader)
+
+    trainer.validate(model, validation_dataloader)
+    
+    return trainer.callback_metrics['val_loss'].item()
+
 if __name__ == "__main__":
     # parse args
     parser = argparse.ArgumentParser()
     #TODO: Design Decision: Should we input paths, to the pre-extracted layers, or the model/layer we want to generate them from
+    # required inputs
     parser.add_argument("--norm", type=str, required=True, help="feature norm set to use")
     parser.add_argument("--embedding_dir", type=str, required=True, help=" directory containing embeddings")
     parser.add_argument("--lm_layer", type=int, required=True, help="layer of embeddings to use")
+    # if user selects optimize, hidden_size, batch_size and learning_rate will be optimized. 
+    parser.add_argument("--optimize", action="store_true", help="optimize hyperparameters for training")
+    parser.add_argument("--prune", action="store_true", help="prune unpromising trials when optimizing")
+    # optional hyperparameter specs
     parser.add_argument("--num_layers", type=int, default=2, help="number of layers in FFN")
     parser.add_argument("--hidden_size", type=int, default=100, help="hidden size of FFN")
     parser.add_argument("--dropout", type=float, default=0.1, help="dropout rate of FFN")
@@ -223,9 +312,41 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate for training")
     parser.add_argument("--weight_decay", type=float, default=0.0, help="weight decay for training")
     parser.add_argument("--early_stopping", type=int, default=None, help="number of epochs to wait for early stopping")
+    # required for output
     parser.add_argument("--save_dir", type=str, required=True, help="directory to save model to")
     parser.add_argument("--save_model_name", type=str, required=True, help="name of model to save")
 
-
     args = parser.parse_args()
-    model = train(args)
+
+    if args.optimize:
+        # call optimizer code here
+        print("optimizing for learning rate, batch size, and hidden size")
+        pruner = optuna.pruners.MedianPruner() if args.prune else optuna.pruners.NopPruner()
+
+        study = optuna.create_study(direction='minimize', pruner=pruner)
+        study.optimize(partial(objective, args=args), n_trials = 100, timeout=600)
+
+        other_params = {
+            "num_layers": args.num_layers,
+            "num_epochs": args.num_epochs,
+            "dropout": args.dropout,
+            "weight_decay": args.weight_decay
+        }
+
+        print("Number of finished trials: {}".format(len(study.trials)))
+
+        print("Best trial:")
+        trial = study.best_trial
+
+        print("  Value: {}".format(trial.value))
+
+        print("  Optimized Params: ")
+        for key, value in trial.params.items():
+            print("    {}: {}".format(key, value))
+
+        print("  Other Params: ")
+        for key, value in other_params.items():
+            print("    {}: {}".format(key, value))
+    else: 
+        # use specified hyperparameters
+        model = train(args)

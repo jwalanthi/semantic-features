@@ -7,7 +7,7 @@ from model import FFNModule, FeatureNormPredictor, FFNParams, TrainingParams
 
 def test(): 
     model = FeatureNormPredictor.load_from_checkpoint(
-        checkpoint_path='saved_models/bert_to_binder_layer11_decay0001.ckpt',
+        checkpoint_path='saved_models/bert_to_binder_layer11_stop3.ckpt',
         map_location=None
     )
 
@@ -19,7 +19,7 @@ def test():
 
     # get a sample embedding to test
     data = [
-        ("the cello is the best instrument", "cello")
+        ("colorless green ideas sleep furiously", "ideas")
     ]
     lm = cwe.CWE('bert-base-uncased')
     emb = lm.extract_representation(data, layer=11)
