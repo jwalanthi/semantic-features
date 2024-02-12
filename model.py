@@ -27,6 +27,7 @@ class FFNModule(torch.nn.Module):
         hidden_size: int,
         num_layers: int,
         dropout: float,
+        final_relu: bool,
     ):
         super(FFNModule, self).__init__()
 
@@ -38,7 +39,7 @@ class FFNModule(torch.nn.Module):
             # changes input size to hidden size after first layer
             input_size = hidden_size
         layers.append(torch.nn.Linear(hidden_size, output_size))
-        # optional layers.append(torch.nn.ReLU(output_size,output_size))
+        if final_relu: layers.append(torch.nn.ReLU())
         self.network = torch.nn.Sequential(*layers)
 
     def forward(self, x):
@@ -50,6 +51,7 @@ class FFNParams(BaseModel):
     hidden_size: int
     num_layers: int
     dropout: float
+    final_relu: bool
 
 class TrainingParams(BaseModel):
     num_epochs: int
@@ -152,6 +154,7 @@ def train(args : Dict[str, Any]):
             hidden_size=args.hidden_size,
             num_layers=args.num_layers,
             dropout=args.dropout,
+            final_relu = args.final_relu
         ),
         TrainingParams(
             num_epochs=args.num_epochs,
@@ -240,6 +243,7 @@ def objective(trial: optuna.trial.Trial, args: Dict[str, Any]) -> float:
             hidden_size=hidden_size,
             num_layers=args.num_layers,
             dropout=args.dropout,
+            final_relu = args.final_relu
         ),
         TrainingParams(
             num_epochs=args.num_epochs,
@@ -321,6 +325,7 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate for training")
     parser.add_argument("--weight_decay", type=float, default=0.0, help="weight decay for training")
     parser.add_argument("--early_stopping", type=int, default=None, help="number of epochs to wait for early stopping")
+    parser.add_argument("--final_relu", action="store_true", help="force model to learn non-negative values")
     # required for output
     parser.add_argument("--save_dir", type=str, required=True, help="directory to save model to")
     parser.add_argument("--save_model_name", type=str, required=True, help="name of model to save")
@@ -336,13 +341,14 @@ if __name__ == "__main__":
         sampler = optuna.samplers.TPESampler(seed=10)
 
         study = optuna.create_study(direction='minimize', pruner=pruner, sampler=sampler)
-        study.optimize(partial(objective, args=args), n_trials = 2, timeout=600)
+        study.optimize(partial(objective, args=args), n_trials = 100, timeout=600)
 
         other_params = {
             "num_layers": args.num_layers,
             "num_epochs": args.num_epochs,
             "dropout": args.dropout,
-            "weight_decay": args.weight_decay
+            "weight_decay": args.weight_decay,
+            "final_relu": args.final_relu
         }
 
         print("Number of finished trials: {}".format(len(study.trials)))

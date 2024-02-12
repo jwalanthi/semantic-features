@@ -7,15 +7,13 @@ from model import FFNModule, FeatureNormPredictor, FFNParams, TrainingParams
 
 def test(): 
     model = FeatureNormPredictor.load_from_checkpoint(
-        checkpoint_path='saved_models/bert_to_binder_layer11_stop3.ckpt',
+        checkpoint_path='saved_models/bert_to_binder_layer11_default_relu.ckpt',
         map_location=None
     )
-
-    trainer = lightning.Trainer(
-            max_epochs=10,
-            accelerator="cpu",
-            log_every_n_steps=7
-        )
+    
+    print("model hyperparameters: ")
+    for key,value in model.hparams.items():
+        print("    {}: {}".format(key, value))
 
     # get a sample embedding to test
     data = [
