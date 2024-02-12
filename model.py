@@ -5,6 +5,8 @@ from typing import Any, Dict
 import argparse
 from pydantic import BaseModel
 from get_dataset_dictionaries import get_dict_pair
+import os
+import shutil
 
 import optuna
 from optuna.integration import PyTorchLightningPruningCallback
@@ -36,6 +38,7 @@ class FFNModule(torch.nn.Module):
             # changes input size to hidden size after first layer
             input_size = hidden_size
         layers.append(torch.nn.Linear(hidden_size, output_size))
+        # optional layers.append(torch.nn.ReLU(output_size,output_size))
         self.network = torch.nn.Sequential(*layers)
 
     def forward(self, x):
@@ -270,6 +273,12 @@ def objective(trial: optuna.trial.Trial, args: Dict[str, Any]) -> float:
     )
 
     callbacks = [
+        # all trial models will be saved in temporary directory
+        lightning.pytorch.callbacks.ModelCheckpoint(
+            save_last=True,
+            dirpath=os.path.join(args.save_dir,'optuna_trials'),
+            filename="{}".format(trial.number)
+        ),
         PyTorchLightningPruningCallback(
             trial,
             monitor='val_loss'
@@ -283,7 +292,7 @@ def objective(trial: optuna.trial.Trial, args: Dict[str, Any]) -> float:
         callbacks=callbacks,
         accelerator="cpu",
         log_every_n_steps=7,
-        enable_checkpointing=False
+        # enable_checkpointing=False
     )
 
     trainer.fit(model, train_dataloader, validation_dataloader)
@@ -318,13 +327,16 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    torch.manual_seed(10)
+
     if args.optimize:
         # call optimizer code here
         print("optimizing for learning rate, batch size, and hidden size")
         pruner = optuna.pruners.MedianPruner() if args.prune else optuna.pruners.NopPruner()
+        sampler = optuna.samplers.TPESampler(seed=10)
 
-        study = optuna.create_study(direction='minimize', pruner=pruner)
-        study.optimize(partial(objective, args=args), n_trials = 100, timeout=600)
+        study = optuna.create_study(direction='minimize', pruner=pruner, sampler=sampler)
+        study.optimize(partial(objective, args=args), n_trials = 2, timeout=600)
 
         other_params = {
             "num_layers": args.num_layers,
@@ -338,15 +350,22 @@ if __name__ == "__main__":
         print("Best trial:")
         trial = study.best_trial
 
-        print("  Value: {}".format(trial.value))
+        print("  Validation Loss: {}".format(trial.value))
 
         print("  Optimized Params: ")
         for key, value in trial.params.items():
             print("    {}: {}".format(key, value))
 
-        print("  Other Params: ")
+        print("  User Defined Params: ")
         for key, value in other_params.items():
             print("    {}: {}".format(key, value))
-    else: 
-        # use specified hyperparameters
+        
+        print('saving best trial')
+        for filename in os.listdir(os.path.join(args.save_dir,'optuna_trials')):
+            if filename == "{}.ckpt".format(trial.number):
+                shutil.move(os.path.join(args.save_dir,'optuna_trials',filename), os.path.join(args.save_dir, "{}.ckpt".format(args.save_model_name)))
+        shutil.rmtree(os.path.join(args.save_dir,'optuna_trials'))
+
+    else:   
         model = train(args)
+        
