@@ -2,7 +2,7 @@
 import argparse
 from minicons import cwe
 import os
-import numpy as np
+import torch
 
 def check_dimensions(model_name, data):
     lm = cwe.CWE(model_name)
@@ -17,12 +17,12 @@ def check_dimensions(model_name, data):
     actual_layer_count = 0
     for root, dirs, files in os.walk(os.path.join('saved_embeddings',model_name), topdown=False):
         for name in files:
-            if 'words' not in name:
+            if 'pt' in name:
                 # print(os.path.join(root, name))
                 layer = int(name.split('layer')[1].split('.')[0])
-                as_np = np.load(os.path.join(root,name), allow_pickle=True)
+                as_np = torch.load(os.path.join(root,name))
                 shape_for_layer[layer-1] = as_np.shape
-            else:
+            elif 'words' in name:
                 with open(os.path.join(root,name)) as wordfile:
                     words = [line.rstrip() for line in wordfile.readlines()]
                     actual_word_count = len(words)

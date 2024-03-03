@@ -81,5 +81,4 @@ def save(word_embeddings, model_name):
     words_file.write("\n".join(vocab))
     words_file.close()
     for layer, tensor in layer_matrices.items():
-        as_numpy = tensor.numpy()
-        np.save(model_dir+"/layer"+str(layer), as_numpy, allow_pickle=False)
+        torch.save(tensor, model_dir+"/layer"+str(layer)+'.pt')

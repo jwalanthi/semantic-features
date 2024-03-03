@@ -1,0 +1,16 @@
+Variable,Label 
+Where,"The data for the feature listing task comes from three different sources: b for Buchanan for the current and Buchanan et al. (2013) studies, m for McRae et al. (2005) studies, and v for Vinson and Vigliocco (2008). This variable was used to distinguish the dataset of the study for comparison in the paper, and cosine values above are an average when the words were presented in different datasets. "
+Cue Word,The word presented in the feature listing task to the participants. 
+Feature,The original word that participants wrote in the feature listing task. This word would be considered the raw word for the calculations described above. 
+Translated,The feature word translated into a root word (similar to lemmatization). This word would be used for the calculation of the root word cosine described above.
+Frequency_Feature,This column provides the number of participants who listed the original unprocessed (raw) feature in the feature column.
+Frequency_Translated,This column provides the number of participants who listed the translated feature provided in the translated column (a summation of the times that the root word was used for that cue).
+n,"Sample size for that cue, as this value was variable across studies and sampling times."
+Normalized_Feature,The frequency of the feature (raw word) divided by the sample size (n) to normalize the differences in sample size across studies and sampling times. These values were the numerical frequencies included in cosine calculations.
+Normalized_Translated,The frequency of the translated features (root word) divided by the sample size (n). These values were the numerical frequencies included in cosine calculations.
+POS_Cue,"Part of speech for the cue, using the most frequent part of speech. Most of these values were gathered from the English Lexicon Project, and others were found using a ""define + cue"" Google search."
+POS_Feature,Part of speech for the feature column (raw word).
+POS_Translated,Part of speech for the translated column (root word).
+A1 through A3,"Affix types (coding schema can be found on our OSF page and linked below). There are three columns because that is the maximum number of affixes that a word had when translated to the root word. A zero indicates no affix present. Other options include actions_process, characteristic, location, magnitude, not, numbers, opposites_wrong, past_tense, person_object, present_participle, slang, third_person, and time.  "
+FSG,"Forward strength is the probability of the target word association when shown the cue word (ranges from 0 to 1), and these values are from the Nelson et al. (2004) free association norms. These values differ depending on the direction of the association. Therefore, the number of times cheese is listed in response to cheddar is not the same as the number of times that cheddar is listed in response to cheese."
+BSG,"Backward strength is the probability of the cue word association when shown the target word (ranges from 0 to 1), and these values are from the Nelson et al. (2004) free association norms. As described above in FSG, these values are often different than the target word in response to the cue. "
