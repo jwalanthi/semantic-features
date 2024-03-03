@@ -14,10 +14,10 @@ After you've extracted the embeddings, you can use `check_savings.py` to make su
 
 To format the data for use in training, use `get_dict_pair(norm: str, embedding_directory: str, layer: int, translated=True)` function from `get_dataset_dictionaries.py`
 
- - norm(str): must be `binder`, `buchannan`, or `mcrae`. Specifies which set of feature norms to use
+ - norm(str): must be `binder`, `buchanan`, or `mcrae`. Specifies which set of feature norms to use
  - embedding_directory(str): directory where lm embeddings for all layers are stored
  - layer(int): which layer of embeddings to use
- - translated(bool): optional, default `True`. Specifies whether to use raw or translated values for Buchannan norms. Ignored for other norms
+ - translated(bool): optional, default `True`. Specifies whether to use raw or translated values for Buchanan norms. Ignored for other norms
 
 To train a feature norm predictor model, use `model.py`, such as:
 

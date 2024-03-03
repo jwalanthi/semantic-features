@@ -139,11 +139,14 @@ def train(args : Dict[str, Any]):
     # feature_norms = torch.load(args.feature_norms)
     # words = list(input_embeddings.keys())
 
-    input_embeddings, feature_norms, _ = get_dict_pair(
+    input_embeddings, feature_norms, norm_list = get_dict_pair(
         args.norm,
         args.embedding_dir,
         args.lm_layer,
     )
+    norms_file = open(args.save_dir+"/"+args.save_model_name+'.txt','w')
+    norms_file.write("\n".join(norm_list))
+    norms_file.close()
 
     words = list(input_embeddings.keys())
     
@@ -221,11 +224,14 @@ def train(args : Dict[str, Any]):
 # this is used when optimizing
 def objective(trial: optuna.trial.Trial, args: Dict[str, Any]) -> float:
     # optimizing hidden size, batch size, and learning rate
-    input_embeddings, feature_norms, _ = get_dict_pair(
+    input_embeddings, feature_norms, norm_list = get_dict_pair(
         args.norm,
         args.embedding_dir,
         args.lm_layer,
     )
+    norms_file = open(args.save_dir+"/"+args.save_model_name+'.txt','w')
+    norms_file.write("\n".join(norm_list))
+    norms_file.close()
 
     words = list(input_embeddings.keys())
     input_size=input_embeddings[words[0]].shape[0]

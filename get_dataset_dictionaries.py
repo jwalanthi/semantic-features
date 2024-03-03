@@ -7,12 +7,12 @@ def get_dict_pair(norm: str, embedding_directory: str, layer: int, translated=Tr
     # get specified norm set
     if norm == 'binder':
         all_ratings, feature_list = get_binder_norms()
-    elif norm == 'buchannan':
-        all_ratings, feature_list = get_buchannan_norms(translated=translated)
+    elif norm == 'buchanan':
+        all_ratings, feature_list = get_buchanan_norms(translated=translated)
     elif norm == 'mcrae':
         all_ratings, feature_list = get_mcrae_norms()
     else:
-        raise ValueError('norm must be binder, buchannan, or mcrae')
+        raise ValueError('norm must be binder, buchanan, or mcrae')
     
     # want to take the intersection of the words that have ratings and those for which we have embeddings
     with open(os.path.join(embedding_directory, 'words.txt')) as words_file:
@@ -64,7 +64,7 @@ def get_mcrae_norms():
     # now i have a k-hot encoding for each of the words in the feature set
     return all_ratings, feature_list
 
-def get_buchannan_norms(translated=True):
+def get_buchanan_norms(translated=True):
     ratings_df = pd.read_csv('feature-norms/buchanan/cue_feature_words.csv')
     # get a list of the features
     name_col = 'translated' if translated else 'feature'
@@ -85,7 +85,7 @@ def get_buchannan_norms(translated=True):
 
             
 if __name__ == '__main__':
-    embeddings, ratings, feature_list = get_dict_pair('buchannan', '/home/shared/semantic_features/saved_embeddings/bert-base-uncased', 10, translated=True)
+    embeddings, ratings, feature_list = get_dict_pair('buchanan', '/home/shared/semantic_features/saved_embeddings/bert-base-uncased', 10, translated=True)
     print((ratings.keys() == embeddings.keys()))
     test_word = 'airplane'
     for i in range(len(ratings[test_word])):
