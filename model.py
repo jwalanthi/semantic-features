@@ -27,7 +27,6 @@ class FFNModule(torch.nn.Module):
         hidden_size: int,
         num_layers: int,
         dropout: float,
-        final_relu: bool,
     ):
         super(FFNModule, self).__init__()
 
@@ -39,7 +38,6 @@ class FFNModule(torch.nn.Module):
             # changes input size to hidden size after first layer
             input_size = hidden_size
         layers.append(torch.nn.Linear(hidden_size, output_size))
-        if final_relu: layers.append(torch.nn.ReLU())
         self.network = torch.nn.Sequential(*layers)
 
     def forward(self, x):
@@ -51,7 +49,6 @@ class FFNParams(BaseModel):
     hidden_size: int
     num_layers: int
     dropout: float
-    final_relu: bool
 
 class TrainingParams(BaseModel):
     num_epochs: int
@@ -157,7 +154,6 @@ def train(args : Dict[str, Any]):
             hidden_size=args.hidden_size,
             num_layers=args.num_layers,
             dropout=args.dropout,
-            final_relu = args.final_relu
         ),
         TrainingParams(
             num_epochs=args.num_epochs,
@@ -203,7 +199,7 @@ def train(args : Dict[str, Any]):
             monitor="val_loss",
             patience=args.early_stopping,
             mode='min',
-            min_delta=0.01
+            min_delta=0.0
         ))
 
     #TODO Design Decision - other trainer args? Is device necessary?
@@ -238,7 +234,7 @@ def objective(trial: optuna.trial.Trial, args: Dict[str, Any]) -> float:
     output_size=feature_norms[words[0]].shape[0]
     min_size = min(output_size, input_size)
     max_size = min(output_size, 2*input_size)if min_size == input_size else min(2*output_size, input_size)
-    hidden_size = trial.suggest_int("hidden_size", min_size, max_size, step=5, log=False)
+    hidden_size = trial.suggest_int("hidden_size", min_size, max_size, log=True)
     batch_size = trial.suggest_int("batch_size", 16, 128, log=True)
     learning_rate = trial.suggest_float("learning_rate", 1e-6, 1, log=True)
 
@@ -249,7 +245,6 @@ def objective(trial: optuna.trial.Trial, args: Dict[str, Any]) -> float:
             hidden_size=hidden_size,
             num_layers=args.num_layers,
             dropout=args.dropout,
-            final_relu = args.final_relu
         ),
         TrainingParams(
             num_epochs=args.num_epochs,
@@ -294,6 +289,13 @@ def objective(trial: optuna.trial.Trial, args: Dict[str, Any]) -> float:
             monitor='val_loss'
         )
     ]
+    if args.early_stopping is not None:
+        callbacks.append(lightning.pytorch.callbacks.EarlyStopping(
+            monitor="val_loss",
+            patience=args.early_stopping,
+            mode='min',
+            min_delta=0.0
+        ))
     # note that if optimizing is chosen, will automatically not implement vanilla early stopping 
     #TODO Design Decision - other trainer args? Is device necessary?
     # cpu is fine for the scale of this model - only a few layers and a few hundred words
@@ -326,12 +328,12 @@ if __name__ == "__main__":
     parser.add_argument("--num_layers", type=int, default=2, help="number of layers in FFN")
     parser.add_argument("--hidden_size", type=int, default=100, help="hidden size of FFN")
     parser.add_argument("--dropout", type=float, default=0.1, help="dropout rate of FFN")
+    # set this to at least 100 if doing early stopping
     parser.add_argument("--num_epochs", type=int, default=10, help="number of epochs to train for")
     parser.add_argument("--batch_size", type=int, default=32, help="batch size for training")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate for training")
     parser.add_argument("--weight_decay", type=float, default=0.0, help="weight decay for training")
     parser.add_argument("--early_stopping", type=int, default=None, help="number of epochs to wait for early stopping")
-    parser.add_argument("--final_relu", action="store_true", help="force model to learn non-negative values")
     # required for output
     parser.add_argument("--save_dir", type=str, required=True, help="directory to save model to")
     parser.add_argument("--save_model_name", type=str, required=True, help="name of model to save")
@@ -354,7 +356,6 @@ if __name__ == "__main__":
             "num_epochs": args.num_epochs,
             "dropout": args.dropout,
             "weight_decay": args.weight_decay,
-            "final_relu": args.final_relu
         }
 
         print("Number of finished trials: {}".format(len(study.trials)))
