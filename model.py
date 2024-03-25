@@ -140,7 +140,9 @@ def train(args : Dict[str, Any]):
         args.norm,
         args.embedding_dir,
         args.lm_layer,
-    )
+        translated= False if args.raw_buchanan else True,
+        normalized= True if args.normal_buchanan else False
+    ) 
     norms_file = open(args.save_dir+"/"+args.save_model_name+'.txt','w')
     norms_file.write("\n".join(norm_list))
     norms_file.close()
@@ -224,6 +226,8 @@ def objective(trial: optuna.trial.Trial, args: Dict[str, Any]) -> float:
         args.norm,
         args.embedding_dir,
         args.lm_layer,
+        translated= False if args.raw_buchanan else True,
+        normalized= True if args.normal_buchanan else False
     )
     norms_file = open(args.save_dir+"/"+args.save_model_name+'.txt','w')
     norms_file.write("\n".join(norm_list))
@@ -334,11 +338,17 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate for training")
     parser.add_argument("--weight_decay", type=float, default=0.0, help="weight decay for training")
     parser.add_argument("--early_stopping", type=int, default=None, help="number of epochs to wait for early stopping")
+    # optional dataset specs, for buchanan really
+    parser.add_argument('--raw_buchanan', action="store_true", help="do not use translated values for buchanan")
+    parser.add_argument('--normal_buchanan', action="store_true", help="use normalized features for buchanan")
     # required for output
     parser.add_argument("--save_dir", type=str, required=True, help="directory to save model to")
     parser.add_argument("--save_model_name", type=str, required=True, help="name of model to save")
 
     args = parser.parse_args()
+
+    if args.early_stopping is not None:
+        args.num_epochs = max(50, args.num_epochs)
 
     torch.manual_seed(10)
 

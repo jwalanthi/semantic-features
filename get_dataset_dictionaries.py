@@ -3,12 +3,12 @@ import torch
 import os
 from collections import defaultdict
 
-def get_dict_pair(norm: str, embedding_directory: str, layer: int, translated=True):
+def get_dict_pair(norm: str, embedding_directory: str, layer: int, translated=True, normalized=False):
     # get specified norm set
     if norm == 'binder':
         all_ratings, feature_list = get_binder_norms()
     elif norm == 'buchanan':
-        all_ratings, feature_list = get_buchanan_norms(translated=translated)
+        all_ratings, feature_list = get_buchanan_norms(translated=translated, normalized=normalized)
     elif norm == 'mcrae':
         all_ratings, feature_list = get_mcrae_norms()
     else:
@@ -64,11 +64,11 @@ def get_mcrae_norms():
     # now i have a k-hot encoding for each of the words in the feature set
     return all_ratings, feature_list
 
-def get_buchanan_norms(translated=True):
+def get_buchanan_norms(translated=True, normalized=False):
     ratings_df = pd.read_csv('feature-norms/buchanan/cue_feature_words.csv')
     # get a list of the features
     name_col = 'translated' if translated else 'feature'
-    freq_col = 'frequency_'+name_col
+    freq_col = 'frequency_'+name_col if not normalized else 'normalized_'+name_col
     feature_list = ratings_df[name_col].unique().tolist()
     feature_list.sort()
     # an inverted list
