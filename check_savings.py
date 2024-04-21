@@ -20,8 +20,10 @@ def check_dimensions(model_name, data):
             if 'pt' in name:
                 # print(os.path.join(root, name))
                 layer = int(name.split('layer')[1].split('.')[0])
-                as_np = torch.load(os.path.join(root,name))
-                shape_for_layer[layer-1] = as_np.shape
+                as_pt = torch.load(os.path.join(root,name))
+                has_nan = as_pt.isnan().any()
+                if has_nan: print("Layer {} has a nan".format(layer))
+                shape_for_layer[layer-1] = as_pt.shape
             elif 'words' in name:
                 with open(os.path.join(root,name)) as wordfile:
                     words = [line.rstrip() for line in wordfile.readlines()]
