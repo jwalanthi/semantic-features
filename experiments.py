@@ -68,7 +68,7 @@ def fire(mod_names: list):
             squeezed = pred.squeeze(0)
             df = pd.Series(squeezed.detach().numpy(), index = labels[i])
             df.sort_values(ascending=False, inplace=True)
-            df.to_csv('results/fire/'+name+'_fire_'+fires[j]+'1.csv')
+            df.to_csv('results/fire/'+name+'_fire_'+fires[j]+'.csv')
 
 def aann(buchanan_model: str):
     model_name = buchanan_model.split('/')[-1]
@@ -107,8 +107,8 @@ def aann(buchanan_model: str):
         df['default - aann'] = df['default'] - df['aann']
         df = df.sort_values('default - aann', ascending=False)
         aann_vals = df.loc[df['feature'].isin(aann_features)]
-        df.to_csv('results/aann/'+model_name+'_'+word+'1.csv')
-        aann_vals.to_csv('results/aann/'+model_name+'_'+word+'1_just3.csv')
+        df.to_csv('results/aann/'+model_name+'_'+word+'.csv')
+        aann_vals.to_csv('results/aann/'+model_name+'_'+word+'_just3.csv')
 
 
 def roles(binder_model: str):
@@ -164,9 +164,10 @@ if __name__ == "__main__":
          'saved_models/chronis_et_al/bert_to_binder_layer8_stopped_opt',
          'saved_models/chronis_et_al/bert_to_buchanan_layer8_stopped_opt_long_enough',
          'saved_models/chronis_et_al/bert_to_mcrae_layer8_stopped_opt_long_enough',
-         'saved_models/chronis_et_al/bert_to_buchanan_layer8_stopped_opt']
-    # fire([mod_names[1]])
-    aann(mod_names[1])
+         'saved_models/chronis_et_al/bert_to_buchanan_layer8_stopped_opt',
+         'saved_models/chronis_et_al/bert_to_mcrae_layer8_stopped_opt']
+    fire([mod_names[-1]])
+    # aann(mod_names[1])
     # aann(mod_names[3])
     # roles(mod_names[0])
 

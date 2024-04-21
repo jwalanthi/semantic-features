@@ -370,8 +370,9 @@ if __name__ == "__main__":
 
         print("Number of finished trials: {}".format(len(study.trials)))
 
-        print("Best trial:")
         trial = study.best_trial
+        print("Best trial: "+str(trial.number))
+        
 
         print("  Validation Loss: {}".format(trial.value))
 
@@ -389,6 +390,9 @@ if __name__ == "__main__":
                 shutil.move(os.path.join(args.save_dir,'optuna_trials',filename), os.path.join(args.save_dir, "{}.ckpt".format(args.save_model_name)))
         shutil.rmtree(os.path.join(args.save_dir,'optuna_trials'))
 
+        # save validation loss in txt file
+        vals = open(os.path.join(args.save_dir, 'validation_loss.txt'), "a")
+        vals.write("{}: {}\n".format(args.save_model_name, trial.value))
     else:   
         model = train(args)
         
