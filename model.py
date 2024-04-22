@@ -215,9 +215,9 @@ def train(args : Dict[str, Any]):
 
     trainer.fit(model, train_dataloader, validation_dataloader)
 
-    trainer.validate(model, validation_dataloader)
+    val_metrics = trainer.validate(model, validation_dataloader)
 
-    return model
+    return model, val_metrics
 
 # this is used when optimizing
 def objective(trial: optuna.trial.Trial, args: Dict[str, Any]) -> float:
@@ -391,8 +391,11 @@ if __name__ == "__main__":
         shutil.rmtree(os.path.join(args.save_dir,'optuna_trials'))
 
         # save validation loss in txt file
-        vals = open(os.path.join(args.save_dir, 'validation_loss.txt'), "a")
-        vals.write("{}: {}\n".format(args.save_model_name, trial.value))
+        val_loss = trial.value
     else:   
-        model = train(args)
+        model, val_metrics = train(args)
+        val_loss = val_metrics[0]['val_loss']
+
+    vals = open(os.path.join(args.save_dir, 'validation_loss.txt'), "a")
+    vals.write("{}: {}\n".format(args.save_model_name, val_loss))
         

@@ -1,6 +1,7 @@
 # git ignore all the csvs they are too big
 *.csv
 ._token_lists
+*.png
 
 # saved embs
 saved_embeddings/

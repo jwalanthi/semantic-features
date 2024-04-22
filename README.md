@@ -24,3 +24,5 @@ To train a feature norm predictor model, use `model.py`, such as:
 ```
 python model.py --norm=mcrae --embedding_dir=/home/shared/semantic_features/saved_embeddings/bert-base-uncased --lm_layer=10 --num_layers=2 --hidden_size=128 --dropout=0.1 --save_dir=/home/rmj2433/models --save_model_name=test_name
 ```
+
+If you'd like to train a classifier for each layer of the LM, you can use the `train_all_layers.sh` script by running `./train_all_layers.sh` and following the prompts. All hyperparameters will be the same except for the layer of the LM.
