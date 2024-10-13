@@ -396,6 +396,14 @@ if __name__ == "__main__":
         model, val_metrics = train(args)
         val_loss = val_metrics[0]['val_loss']
 
-    vals = open(os.path.join(args.save_dir, 'validation_loss.txt'), "a")
-    vals.write("{}: {}\n".format(args.save_model_name, val_loss))
+    info_file = os.path.join(args.save_dir, 'train_info.csv')
+    make_header = False
+    if not os.path.exists(info_file) :
+        make_header = True
+    vals = open(info_file, "a")
+    if make_header:
+        vals.write("Name,Directory,Norm,EmbeddingDir,Layer,Optimize,Prune,NumLayers,HiddenSize,Dropout,NumEpochs,BatchSize,LearningRate,WeightDecay,EarlyStopping,RawBuchanan,NormalBuchanan,ValidationLoss\n")
+    vals.write("{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(args.save_model_name, args.save_dir, args.norm, args.embedding_dir, args.lm_layer, 
+                                                                                          args.optimize, args.prune, args.num_layers, args.hidden_size, args.dropout, args.num_epochs, args.batch_size, 
+                                                                                          args.learning_rate, args.weight_decay, args.early_stopping, args.raw_buchanan, args.normal_buchanan, val_loss))
         
