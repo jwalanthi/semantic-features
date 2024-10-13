@@ -373,17 +373,6 @@ if __name__ == "__main__":
         trial = study.best_trial
         print("Best trial: "+str(trial.number))
         
-
-        print("  Validation Loss: {}".format(trial.value))
-
-        print("  Optimized Params: ")
-        for key, value in trial.params.items():
-            print("    {}: {}".format(key, value))
-
-        print("  User Defined Params: ")
-        for key, value in other_params.items():
-            print("    {}: {}".format(key, value))
-        
         print('saving best trial')
         for filename in os.listdir(os.path.join(args.save_dir,'optuna_trials')):
             if filename == "{}.ckpt".format(trial.number):
@@ -403,7 +392,12 @@ if __name__ == "__main__":
     vals = open(info_file, "a")
     if make_header:
         vals.write("Name,Directory,Norm,EmbeddingDir,Layer,Optimize,Prune,NumLayers,HiddenSize,Dropout,NumEpochs,BatchSize,LearningRate,WeightDecay,EarlyStopping,RawBuchanan,NormalBuchanan,ValidationLoss\n")
-    vals.write("{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(args.save_model_name, args.save_dir, args.norm, args.embedding_dir, args.lm_layer, 
+    if args.optimize:
+        vals.write("{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(args.save_model_name, args.save_dir, args.norm, args.embedding_dir, args.lm_layer, 
+                                                                                          args.optimize, args.prune, args.num_layers, trial.params['hidden_size'], args.dropout, args.num_epochs, trial.params['batch_size'], 
+                                                                                          trial.params['learning_rate'], args.weight_decay, args.early_stopping, args.raw_buchanan, args.normal_buchanan, val_loss))
+    else:
+        vals.write("{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(args.save_model_name, args.save_dir, args.norm, args.embedding_dir, args.lm_layer, 
                                                                                           args.optimize, args.prune, args.num_layers, args.hidden_size, args.dropout, args.num_epochs, args.batch_size, 
                                                                                           args.learning_rate, args.weight_decay, args.early_stopping, args.raw_buchanan, args.normal_buchanan, val_loss))
         
