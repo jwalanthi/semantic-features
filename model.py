@@ -359,7 +359,7 @@ if __name__ == "__main__":
         sampler = optuna.samplers.TPESampler(seed=10)
 
         study = optuna.create_study(direction='minimize', pruner=pruner, sampler=sampler)
-        study.optimize(partial(objective, args=args), n_trials = 100, timeout=600)
+        study.optimize(partial(objective, args=args), n_trials = 100)
 
         other_params = {
             "num_layers": args.num_layers,
