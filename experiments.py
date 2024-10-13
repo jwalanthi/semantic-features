@@ -5,7 +5,7 @@ import pandas as pd
 
 from model import FFNModule, FeatureNormPredictor, FFNParams, TrainingParams
 
-def fire(mod_names: list):
+def fire(mod_names: list, lm_name):
     fires =  ['metaphor', 'destructive', 'artillery', 'hearth', 'compound']
     fire_data = [
         [
@@ -51,7 +51,7 @@ def fire(mod_names: list):
         with open (name+'.txt', "r") as file:
             labels.append([line.rstrip() for line in file.readlines()])
 
-    lm = cwe.CWE('bert-base-uncased')
+    lm = cwe.CWE(lm_name)
     for i in range(len(models)):
         name = mod_names[i].split('/')[-1]
         model = models[i]
@@ -166,7 +166,14 @@ if __name__ == "__main__":
          'saved_models/chronis_et_al/bert_to_mcrae_layer8_stopped_opt_long_enough',
          'saved_models/chronis_et_al/bert_to_buchanan_layer8_stopped_opt',
          'saved_models/chronis_et_al/bert_to_mcrae_layer8_stopped_opt']
-    fire([mod_names[-1]])
+    new_models = [
+        'saved_models/comps_but_better/bert_to_binder_stop_opt_layer9',
+        'saved_models/comps/albert12_to_binder_opt_stop',
+        'saved_models/comps/albert8_to_binder_opt_stop',
+        'saved_models/comps/bert8_to_binder_opt_stop'
+    ]
+    lms = ['bert-base-uncased', 'albert-xxlarge-v2']
+    fire([new_models[0]], lms[0])
     # aann(mod_names[1])
     # aann(mod_names[3])
     # roles(mod_names[0])

@@ -7,7 +7,7 @@ from model import FFNModule, FeatureNormPredictor, FFNParams, TrainingParams
 
 def test(): 
     model = FeatureNormPredictor.load_from_checkpoint(
-        checkpoint_path='saved_models/bert_to_binder_layer11_default_relu.ckpt',
+        checkpoint_path='saved_models/albert8_to_binder_opt_stop.ckpt',
         map_location=None
     )
     
@@ -17,9 +17,9 @@ def test():
 
     # get a sample embedding to test
     data = [
-        ("colorless green ideas sleep furiously", "ideas")
+        ("the crow is a colorful bird", "crow")
     ]
-    lm = cwe.CWE('bert-base-uncased')
+    lm = cwe.CWE('albert-xxlarge-v2')
     emb = lm.extract_representation(data, layer=11)
     predicted= model(emb)
     squeezed = predicted.squeeze(0)
