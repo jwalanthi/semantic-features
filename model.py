@@ -302,11 +302,12 @@ def objective(trial: optuna.trial.Trial, args: Dict[str, Any]) -> float:
         ))
     # note that if optimizing is chosen, will automatically not implement vanilla early stopping 
     #TODO Design Decision - other trainer args? Is device necessary?
-    # cpu is fine for the scale of this model - only a few layers and a few hundred words
+    # using gpu because training many models
     trainer = lightning.Trainer(
         max_epochs=args.num_epochs,
         callbacks=callbacks,
-        accelerator="cpu",
+        accelerator="gpu",
+        devices=[2],
         log_every_n_steps=7,
         # enable_checkpointing=False
     )
