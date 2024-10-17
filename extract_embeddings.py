@@ -14,8 +14,12 @@ from collections import defaultdict
 
 def _find_word_form(word, sentence):
   '''find how word occurs in sentence'''
-  span = re.search(word, sentence.lower()).span()
-  return sentence[span[0]:span[1]]
+  matches = re.finditer(word, sentence.lower())
+  for match in matches:
+    span = match.span()
+    if (span[0] == 0 or sentence[span[0]-1] == ' ') and (span[1] == len(sentence) or sentence[span[1]] == ' '):
+      break
+  return tuple(span)
 
 def extract(model_name :str, token_file :str):
     lm = cwe.CWE(model_name, 'cuda:2')
@@ -35,15 +39,13 @@ def extract(model_name :str, token_file :str):
                 for line in reader:
                     word, sentence, pos, id = line
 
-                    # replace query word with the form it occurs in the sentence
-                    if word not in sentence:
-                        word = _find_word_form(word, sentence)
+                    # get the word's span
+                    wordspan = _find_word_form(word, sentence)
                     # kick out sentences that are too long for the model
                     if len(sentence) <= lm.tokenizer.model_max_length:
-                        queries.append((sentence, word))
-
+                        queries.append((sentence, torch.tensor(wordspan)))
                 # standardize the way words are identified
-                WORD = queries[0][1].lower()
+                WORD = queries[0][0][queries[0][1][0]:queries[0][1][1]].lower()
 
                 # cool trick to initialize a dictionary with 0s for any new entry
                 # so calling `layerwise_embeddings[0] += extracted embs will create a
@@ -57,6 +59,14 @@ def extract(model_name :str, token_file :str):
                     batched_query = list(zip(sentences, words))
                     layer_embs = lm.extract_representation(batched_query, layer='all')
                     for layer, embs in enumerate(layer_embs):
+                        if layer == 0:
+                            for i in range(0, embs.size(0)):
+                                emb = embs[i]
+                                query = batched_query[i]
+                                if emb.isnan().any():
+                                    print("nan detected in extracted embeddings, offending query:")
+                                    print(f"query: {query}")
+                                    raise Exception("nan found in embedding")
                         layerwise_embeddings[layer] += (embs.sum(0)/len(queries))
 
                 layerwise_embeddings = dict(layerwise_embeddings)
