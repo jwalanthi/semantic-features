@@ -3,6 +3,9 @@ cmd="python model.py"
 echo "Hi there, I'm here to help you train some models! I will train a classifier for each layer of the lm, keeping all other factors the same. Which norm would you like to use?"
 read norm
 cmd+=" --norm=$norm"
+echo "File which has the norms?"
+read norm_file
+cmd+=" --norm_file=$norm_file"
 echo "Embedding directory?"
 read embedding_dir
 cmd+=" --embedding_dir=$embedding_dir"
@@ -28,6 +31,12 @@ read response
 if [ $response == "Y" ]
 then 
     cmd+=" --prune"
+fi
+echo "If using GPU for optimization, which device?"
+read gpu
+if [[ $gpu != "" ]]
+then 
+    cmd+=" --gpu=$gpu"
 fi
 
 echo "Number of Layers in Classifier?"

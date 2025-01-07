@@ -138,6 +138,7 @@ def train(args : Dict[str, Any]):
 
     input_embeddings, feature_norms, norm_list = get_dict_pair(
         args.norm,
+        args.norm_file,
         args.embedding_dir,
         args.lm_layer,
         translated= False if args.raw_buchanan else True,
@@ -224,6 +225,7 @@ def objective(trial: optuna.trial.Trial, args: Dict[str, Any]) -> float:
     # optimizing hidden size, batch size, and learning rate
     input_embeddings, feature_norms, norm_list = get_dict_pair(
         args.norm,
+        args.norm_file,
         args.embedding_dir,
         args.lm_layer,
         translated= False if args.raw_buchanan else True,
@@ -333,7 +335,8 @@ if __name__ == "__main__":
     #TODO: Design Decision: Should we input paths, to the pre-extracted layers, or the model/layer we want to generate them from
     # required inputs
     parser.add_argument("--norm", type=str, required=True, help="feature norm set to use")
-    parser.add_argument("--embedding_dir", type=str, required=True, help=" directory containing embeddings")
+    parser.add_argument("--norm_file", type=str, required=True, help="csv containing norms")
+    parser.add_argument("--embedding_dir", type=str, required=True, help="directory containing embeddings")
     parser.add_argument("--lm_layer", type=int, required=True, help="layer of embeddings to use")
     # optional accelerator
     parser.add_argument("--gpu",type=int, default=None, help="if using gpu, which device (used in optimizing only)")

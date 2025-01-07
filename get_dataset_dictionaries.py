@@ -3,14 +3,14 @@ import torch
 import os
 from collections import defaultdict
 
-def get_dict_pair(norm: str, embedding_directory: str, layer: int, translated=True, normalized=False):
+def get_dict_pair(norm: str, norm_file: str, embedding_directory: str, layer: int, translated=True, normalized=False):
     # get specified norm set
     if norm == 'binder':
-        all_ratings, feature_list = get_binder_norms()
+        all_ratings, feature_list = get_binder_norms(norm_file)
     elif norm == 'buchanan':
-        all_ratings, feature_list = get_buchanan_norms(translated=translated, normalized=normalized)
+        all_ratings, feature_list = get_buchanan_norms(norm_file, translated=translated, normalized=normalized)
     elif norm == 'mcrae':
-        all_ratings, feature_list = get_mcrae_norms()
+        all_ratings, feature_list = get_mcrae_norms(norm_file)
     else:
         raise ValueError('norm must be binder, buchanan, or mcrae')
     
@@ -32,10 +32,10 @@ def get_dict_pair(norm: str, embedding_directory: str, layer: int, translated=Tr
     return embeddings, ratings, feature_list
 
 
-def get_binder_norms():
+def get_binder_norms(norm_file):
     all_ratings = {}
     # read in csv, making sure that na's are interpreted as NaN
-    ratings_df = pd.read_csv('feature-norms/binder/WordSet1_Ratings.csv', na_values=['na'])
+    ratings_df = pd.read_csv(norm_file, na_values=['na'])
     # fill in 0 for na's
     ratings_df.fillna(value=0, inplace=True)
     feature_cols = ratings_df.iloc[:,5:70].columns
@@ -48,8 +48,8 @@ def get_binder_norms():
     # now i have word:tensor for all the words that have feature norms
     return all_ratings, feature_cols.tolist()
     
-def get_mcrae_norms():
-    ratings_df = pd.read_csv('feature-norms/mcrae/concepts_features-Table1.csv')
+def get_mcrae_norms(norm_file):
+    ratings_df = pd.read_csv(norm_file)
     # get a list of the features
     feature_list = ratings_df['Feature'].unique().tolist()
     feature_list.sort()
@@ -64,8 +64,8 @@ def get_mcrae_norms():
     # now i have a k-hot encoding for each of the words in the feature set
     return all_ratings, feature_list
 
-def get_buchanan_norms(translated=True, normalized=False):
-    ratings_df = pd.read_csv('feature-norms/buchanan/cue_feature_words.csv')
+def get_buchanan_norms(norm_file, translated=True, normalized=False):
+    ratings_df = pd.read_csv(norm_file)
     # get a list of the features
     name_col = 'translated' if translated else 'feature'
     freq_col = 'frequency_'+name_col if not normalized else 'normalized_'+name_col
@@ -84,8 +84,9 @@ def get_buchanan_norms(translated=True, normalized=False):
     return all_ratings, feature_list
 
             
+# testing
 if __name__ == '__main__':
-    embeddings, ratings, feature_list = get_dict_pair('buchanan', '/home/shared/semantic_features/saved_embeddings/bert-base-uncased', 10, translated=True)
+    embeddings, ratings, feature_list = get_dict_pair('mcrae','feature-norms/mcrae/concepts_features-Table1.csv','/home/shared/semantic_features/saved_embeddings/bert-base-uncased', 10, translated=True)
     print((ratings.keys() == embeddings.keys()))
     test_word = 'airplane'
     for i in range(len(ratings[test_word])):
