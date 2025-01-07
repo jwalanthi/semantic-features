@@ -302,15 +302,24 @@ def objective(trial: optuna.trial.Trial, args: Dict[str, Any]) -> float:
         ))
     # note that if optimizing is chosen, will automatically not implement vanilla early stopping 
     #TODO Design Decision - other trainer args? Is device necessary?
-    # using gpu because training many models
-    trainer = lightning.Trainer(
+    
+    if args.gpu is not None: # use gpu
+        trainer = lightning.Trainer(
         max_epochs=args.num_epochs,
         callbacks=callbacks,
         accelerator="gpu",
-        devices=[2],
+        devices=[args.gpu],
         log_every_n_steps=7,
         # enable_checkpointing=False
-    )
+    ) 
+    else: # use cpu
+        trainer = lightning.Trainer(
+            max_epochs=args.num_epochs,
+            callbacks=callbacks,
+            accelerator="cpu",
+            log_every_n_steps=7,
+            # enable_checkpointing=False
+        )
 
     trainer.fit(model, train_dataloader, validation_dataloader)
 
@@ -326,6 +335,8 @@ if __name__ == "__main__":
     parser.add_argument("--norm", type=str, required=True, help="feature norm set to use")
     parser.add_argument("--embedding_dir", type=str, required=True, help=" directory containing embeddings")
     parser.add_argument("--lm_layer", type=int, required=True, help="layer of embeddings to use")
+    # optional accelerator
+    parser.add_argument("--gpu",type=int, default=None, help="if using gpu, which device (used in optimizing only)")
     # if user selects optimize, hidden_size, batch_size and learning_rate will be optimized. 
     parser.add_argument("--optimize", action="store_true", help="optimize hyperparameters for training")
     parser.add_argument("--prune", action="store_true", help="prune unpromising trials when optimizing")
