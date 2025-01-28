@@ -21,7 +21,7 @@ def test():
     ]
     lm = cwe.CWE('albert-xxlarge-v2')
     emb = lm.extract_representation(data, layer=11)
-    predicted= model(emb)
+    with torch.no_grad(): predicted= model(emb)
     squeezed = predicted.squeeze(0)
     print(squeezed.shape)
 

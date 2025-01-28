@@ -64,7 +64,7 @@ def fire(mod_names: list, lm_name):
             data = fire_data[j]
             embs = lm.extract_representation(data, layer=8)
             avg = embs.sum(0)/len(data)
-            pred = torch.nn.functional.relu(model(avg))
+            with torch.no_grad(): pred = torch.nn.functional.relu(model(avg))
             squeezed = pred.squeeze(0)
             df = pd.Series(squeezed.detach().numpy(), index = labels[i])
             df.sort_values(ascending=False, inplace=True)
@@ -97,11 +97,12 @@ def aann(buchanan_model: str):
             labels = [line.rstrip() for line in file.readlines()]
     for i in range(len(words)):
         word = words[i]
-        def_embs = lm.extract_representation((default_data[i], word))
-        def_pred = torch.nn.functional.relu(model(def_embs))
-        def_pred = def_pred.squeeze(0)
-        aann_embs = lm.extract_representation((aann_data[i], word))
-        aann_pred = torch.nn.functional.relu(model(aann_embs))
+        with torch.no_grad(): 
+            def_embs = lm.extract_representation((default_data[i], word))
+            def_pred = torch.nn.functional.relu(model(def_embs))
+            def_pred = def_pred.squeeze(0)
+            aann_embs = lm.extract_representation((aann_data[i], word))
+            aann_pred = torch.nn.functional.relu(model(aann_embs))
         aann_pred = aann_pred.squeeze(0)
         df = pd.DataFrame({'feature': labels, 'default': def_pred.detach().numpy(), 'aann': aann_pred.detach().numpy()})
         df['default - aann'] = df['default'] - df['aann']
@@ -141,11 +142,12 @@ def roles(binder_model: str):
             word = words[i][j]
             nat = (natural[i], word)
             swap = (swapped[i], word)
-            nat_embs = lm.extract_representation(nat)
-            nat_pred = torch.nn.functional.relu(model(nat_embs))
-            nat_pred = nat_pred.squeeze(0)
-            swap_embs = lm.extract_representation(swap)
-            swap_pred = torch.nn.functional.relu(model(swap_embs))
+            with torch.no_grad(): 
+                nat_embs = lm.extract_representation(nat)
+                nat_pred = torch.nn.functional.relu(model(nat_embs))
+                nat_pred = nat_pred.squeeze(0)
+                swap_embs = lm.extract_representation(swap)
+                swap_pred = torch.nn.functional.relu(model(swap_embs))
             swap_pred = swap_pred.squeeze(0)
             print
             df = pd.DataFrame({'feature': labels, 'natural': nat_pred.detach().numpy(), 'swapped': swap_pred.detach().numpy()})
