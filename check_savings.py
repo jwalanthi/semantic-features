@@ -4,7 +4,8 @@ from minicons import cwe
 import os
 import torch
 
-def check_dimensions(model_name, data):
+def check_dimensions(model_path, data):
+    model_name = model_path.split("/")[-1]
     lm = cwe.CWE(model_name)
     # set nominal parameters
     nominal_layers = lm.layers
@@ -15,7 +16,7 @@ def check_dimensions(model_name, data):
     shape_for_layer = [0]*nominal_layers
     actual_word_count = 0
     actual_layer_count = 0
-    for root, dirs, files in os.walk(os.path.join('saved_embeddings',model_name), topdown=False):
+    for root, dirs, files in os.walk(model_path, topdown=False):
         for name in files:
             if 'pt' in name:
                 # print(os.path.join(root, name))
@@ -44,10 +45,10 @@ def check_dimensions(model_name, data):
         print("Correct number of layers saved")
 
 def _parse_args():
-    parser = argparse.ArgumentParser(description='extract_embs_main.py')
+    parser = argparse.ArgumentParser(description='check_savings.py')
 
-    parser.add_argument('--model', type=str, default='bert-base-uncased', help='specify model to extract from, default bert-base-uncased')
-    parser.add_argument('--dataset', type=str, default='bnc/less_token_lists', help='file containting token csvs, default subset of bnc')
+    parser.add_argument('--embs', type=str, required=True, help='specify path to embeddings')
+    parser.add_argument('--dataset', type=str, required=True, help='specify path to data')
 
     args = parser.parse_args()
 
@@ -57,4 +58,4 @@ if __name__ == '__main__':
     args = _parse_args()
     args = vars(args)
 
-    check_dimensions(args['model'], args['dataset'])
+    check_dimensions(args['embs'], args['dataset'])

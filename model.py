@@ -376,13 +376,6 @@ if __name__ == "__main__":
         study = optuna.create_study(direction='minimize', pruner=pruner, sampler=sampler)
         study.optimize(partial(objective, args=args), n_trials = 100)
 
-        other_params = {
-            "num_layers": args.num_layers,
-            "num_epochs": args.num_epochs,
-            "dropout": args.dropout,
-            "weight_decay": args.weight_decay,
-        }
-
         print("Number of finished trials: {}".format(len(study.trials)))
 
         trial = study.best_trial

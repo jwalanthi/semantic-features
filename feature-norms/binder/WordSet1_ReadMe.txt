@@ -1,5 +1,5 @@
 About "WordSet1_Ratings.xlsx":
-/Users/gabriellachronis/data/binder_word_ratings/WordSet1_ReadMe.txt
+
 This excel spreadsheet contains conceptual attribute ratings and other data on 535 English words, described in: Binder JR, Conant LL, Humphries CJ, Fernandino L, Simons SB, Aguilar M, Desai RH. (2016) "Toward a brain-based componential semantic representation", Cognitive Neuropsychology.  Please cite this article when using these materials.
 
 Column A is a (somewhat) arbitrary ID number for each word. Items with ID 1-242 are from the KRNS Year 1 corpus (see Glasgow K, Roos M, Haufler A, Chevillet M, Wolmetz, M (2016). Evaluating semantic models with word-sentence relatedness. arXiv:1603.07253 [cs.CL]).

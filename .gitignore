@@ -2,8 +2,8 @@
 *.csv
 ._token_lists
 *.png
+*.pdf
 
-# saved embs
 saved_embeddings/
 saved_models/
 lightning_logs/

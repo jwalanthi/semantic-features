@@ -21,8 +21,8 @@ def _find_word_form(word, sentence):
       break
   return tuple(span)
 
-def extract(model_name :str, token_file :str):
-    lm = cwe.CWE(model_name, 'cuda:2')
+def extract(model_name :str, token_file :str, gpu: int):
+    lm = cwe.CWE(model_name, f'cuda:{gpu}')
     # initialize a dictionary of dictionaries
     word_embeddings = defaultdict(dict)
     print("Extracting embeddings for model "+ model_name+" with data in "+token_file)
@@ -73,7 +73,7 @@ def extract(model_name :str, token_file :str):
                 word_embeddings[WORD] = layerwise_embeddings
     return word_embeddings
 
-def save(word_embeddings, model_name):
+def save(word_embeddings, model_name, save_dir):
     # what we can do now is save <layer> number of matrices
     vocab = []
     layer_matrices = defaultdict(list)
@@ -84,7 +84,7 @@ def save(word_embeddings, model_name):
 
     # this gives us a dict of layer: torch.tensor we need to save
     layer_matrices = {k: torch.cat(v) for k,v in layer_matrices.items()}
-    model_dir = os.path.join('saved_embeddings',model_name)
+    model_dir = os.path.join(save_dir,model_name)
     if not os.path.exists(model_dir):
       os.makedirs(model_dir)
     words_file = open(model_dir+'/words.txt','w')
